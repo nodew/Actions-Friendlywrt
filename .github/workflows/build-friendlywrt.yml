@@ -1,0 +1,155 @@
+#
+# Copyright (c) 2019-2020 P3TERX <https://p3terx.com>
+#
+# This is free software, licensed under the MIT License.
+# See /LICENSE for more information.
+#
+# https://github.com/P3TERX/Actions-OpenWrt
+# Description: Build OpenWrt using GitHub Actions
+#
+
+name: Build friendlywrt
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+    inputs:
+      platfrom:
+        description: 'select platform to build'
+        default: 'rk3328'
+        required: false
+      device:
+        description: 'select hardware to build'
+        default: 'nanopi_r2s'
+        required: false
+      branch:
+        description: 'seleclt friendlywrt branch'
+        default: 'master-21.02'
+        required: false
+
+env:
+  LEDE_REPO_URL: https://github.com/coolsnowwolf/lede
+  LEDE_REPO_BRANCH: master
+  FRIENDLYWRT_ARM_REPO: https://github.com/friendlyarm/repo
+  PLATFORM: ${{ github.event.client_payload.platfrom || github.event.inputs.platfrom }}
+  DEVICE: ${{ github.event.client_payload.device || github.event.inputs.device }}
+  BRANCH: ${{ github.event.client_payload.branch || github.event.inputs.branch }}
+  FEEDS_CONF: feeds.conf.default
+  CONFIG_FILE: .config
+  PATCH_FILE: patches.sh
+  UPLOAD_BIN_DIR: false
+  UPLOAD_FIRMWARE: true
+  UPLOAD_COWTRANSFER: false
+  UPLOAD_WETRANSFER: false
+  UPLOAD_RELEASE: true
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-20.04
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@main
+
+    - name: Initialize environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
+        sudo -E apt-get -qq update
+        sudo -E apt-get -qq install $(curl -fsSL git.io/depends-ubuntu-2004)
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "$TZ"
+        sudo mkdir -p /workdir
+        sudo chown $USER:$GROUPS /workdir
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get upgrade
+        sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python python3.5 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf
+        wget -O - https://raw.githubusercontent.com/friendlyarm/build-env-on-ubuntu-bionic/master/install.sh | sudo bash
+        git clone https://github.com/friendlyarm/repo --depth 1
+        sudo cp repo/repo /usr/bin/
+
+    - name: Init git user
+      run: git config --global user.email "action@github.com" && git config --global user.name "GitHub Action"
+
+    - name: Prepare source code
+      working-directory: /workdir
+      run: |
+        df -hT $PWD
+        git clone $LEDE_REPO_URL -b $LEDE_REPO_BRANCH lede
+        mkdir friendlywrt-$PLATFORM
+        ln -sf /workdir/lede $GITHUB_WORKSPACE/lede
+        ln -sf /workdir/friendlywrt-$PLATFORM $GITHUB_WORKSPACE/friendlywrt-$PLATFORM
+        cd friendlywrt-$PLATFORM
+        repo init -u https://github.com/friendlyarm/friendlywrt_manifests -b $BRANCH -m $PLATFORM.xml --repo-url=https://github.com/friendlyarm/repo --no-clone-bundle
+        repo sync -l --no-clone-bundle
+
+    - name: Load custom config
+      run: |
+        df -hT $PWD
+        cp -rf lede/feeds.conf.default friendlywrt-$PLATFORM/friendlywrt/
+        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
+        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE /friendlywrt-$PLATFORM/friendlywrt/.config
+        cp -rf lede/package/lean friendlywrt-$PLATFORM/friendlywrt/package
+        cp -rf lede/tools/ucl friendlywrt-$PLATFORM/friendlywrt/tools/
+        cp -rf lede/tools/upx friendlywrt-$PLATFORM/friendlywrt/tools/
+        chmod +x $PATCH_FILE
+        cp friendlywrt-$PLATFORM/friendlywrt
+        $GITHUB_WORKSPACE/$PATCH_FILE
+
+    - name: Make .config
+      run: |
+        cd friendlywrt-$PLATFORM/friendlywrt
+        cat $GITHUB_WORKSPACE/config/$DEVICE.config.seed > .config
+        cat $GITHUB_WORKSPACE/config/common.config.seed >> .config
+        make defconfig
+
+    - name: Update feeds
+      run: cd friendlywrt-$PLATFORM/friendlywrt && ./scripts/feeds update -a
+
+    - name: Install feeds
+      run: cd friendlywrt-$PLATFORM/friendlywrt && ./scripts/feeds install -a
+
+    - name: Download package
+      id: package
+      run: |
+        cd friendlywrt-$PLATFORM/friendlywrt
+        make download v=s
+
+    - name: Compile the firmware
+      id: compile
+      run: |
+        cd friendlywrt-$PLATFORM
+        ./build.sh $DEVICE.mk
+
+    - name: Check space usage
+      if: (!cancelled())
+      run: df -hT
+
+    - name: Organize files
+      id: organize
+      if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
+      run: |
+        cd friendlywrt-$PLATFORM/out
+        echo "::set-output name=status::success"
+
+    - name: Upload release asset
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: friendlywrt-${{env.PLATFORM}}/friendlywrt/out/*
+          tag: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
+          file_glob: true
+          overwrite: true
+          release_name: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
+
+    - name: Delete workflow runs
+      uses: GitRML/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 3
