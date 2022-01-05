@@ -139,14 +139,14 @@ jobs:
         echo "::set-output name=status::success"
 
     - name: Upload release asset
-        uses: svenstaro/upload-release-action@v2
-        with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: friendlywrt-${{env.PLATFORM}}/friendlywrt/out/*
-          tag: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
-          file_glob: true
-          overwrite: true
-          release_name: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
+      uses: svenstaro/upload-release-action@v2
+      with:
+        repo_token: ${{ secrets.GITHUB_TOKEN }}
+        file: friendlywrt-${{env.PLATFORM}}/friendlywrt/out/*
+        tag: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
+        file_glob: true
+        overwrite: true
+        release_name: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
 
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
