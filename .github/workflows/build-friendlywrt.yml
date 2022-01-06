@@ -87,7 +87,7 @@ jobs:
         ln -sf /workdir/friendlywrt-$PLATFORM $GITHUB_WORKSPACE/friendlywrt-$PLATFORM
         cd friendlywrt-$PLATFORM
         repo init -u https://github.com/friendlyarm/friendlywrt_manifests -b $BRANCH -m $PLATFORM.xml --repo-url=https://github.com/friendlyarm/repo --no-clone-bundle
-        repo sync -l --no-clone-bundle
+        repo sync -c  --no-clone-bundle
 
     - name: Load custom config
       run: |
