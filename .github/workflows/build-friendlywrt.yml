@@ -99,7 +99,7 @@ jobs:
         cp -rf lede/tools/ucl friendlywrt-$PLATFORM/friendlywrt/tools/
         cp -rf lede/tools/upx friendlywrt-$PLATFORM/friendlywrt/tools/
         chmod +x $PATCH_FILE
-        cp friendlywrt-$PLATFORM/friendlywrt
+        cd friendlywrt-$PLATFORM/friendlywrt
         $GITHUB_WORKSPACE/$PATCH_FILE
 
     - name: Make .config
