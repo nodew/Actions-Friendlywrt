@@ -93,7 +93,7 @@ jobs:
       run: |
         df -hT $PWD
         [ -e $EXTRA_FEEDS_CONF ] && cat $EXTRA_FEEDS_CONF >> friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
-        [ -e $MY_CONFIG_FILE ] && cp MY_CONFIG_FILE friendlywrt-$PLATFORM/configs/rockchip/
+        [ -e $MY_CONFIG_FILE ] && cp $MY_CONFIG_FILE friendlywrt-$PLATFORM/configs/rockchip/
         cp -rf lede/package/lean friendlywrt-$PLATFORM/friendlywrt/package
         cp -rf lede/tools/ucl friendlywrt-$PLATFORM/friendlywrt/tools/
         cp -rf lede/tools/upx friendlywrt-$PLATFORM/friendlywrt/tools/
