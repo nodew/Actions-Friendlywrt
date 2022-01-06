@@ -106,7 +106,6 @@ jobs:
       run: |
         cd friendlywrt-$PLATFORM/friendlywrt
         cat $GITHUB_WORKSPACE/config/$DEVICE.config.seed > .config
-        cat $GITHUB_WORKSPACE/config/common.config.seed >> .config
         make defconfig
 
     - name: Update feeds
