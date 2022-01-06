@@ -34,8 +34,8 @@ env:
   PLATFORM: ${{ github.event.client_payload.platfrom || github.event.inputs.platfrom }}
   DEVICE: ${{ github.event.client_payload.device || github.event.inputs.device }}
   BRANCH: ${{ github.event.client_payload.branch || github.event.inputs.branch }}
-  FEEDS_CONF: feeds.conf.default
-  CONFIG_FILE: .config
+  EXTRA_FEEDS_CONF: extra.feeds.conf
+  MY_CONFIG_FILE: myconfig
   PATCH_FILE: patches.sh
   UPLOAD_BIN_DIR: false
   UPLOAD_FIRMWARE: true
@@ -65,11 +65,11 @@ jobs:
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
         echo "strDate=$(TZ=UTC-8 date +%Y-%m-%d)" >> $GITHUB_ENV
+
     - name: Install dependencies
       run: |
         sudo apt-get update
         sudo apt-get upgrade
-        sudo apt-get -y install build-essential asciidoc binutils bzip2 gawk gettext git libncurses5-dev libz-dev patch python python3.5 unzip zlib1g-dev lib32gcc1 libc6-dev-i386 subversion flex uglifyjs git-core gcc-multilib p7zip p7zip-full msmtp libssl-dev texinfo libglib2.0-dev xmlto qemu-utils upx libelf-dev autoconf automake libtool autopoint device-tree-compiler g++-multilib antlr3 gperf
         wget -O - https://raw.githubusercontent.com/friendlyarm/build-env-on-ubuntu-bionic/master/install.sh | sudo bash
         git clone https://github.com/friendlyarm/repo --depth 1
         sudo cp repo/repo /usr/bin/
@@ -92,21 +92,14 @@ jobs:
     - name: Load custom config
       run: |
         df -hT $PWD
-        cp -rf lede/feeds.conf.default friendlywrt-$PLATFORM/friendlywrt/
-        [ -e $FEEDS_CONF ] && mv $FEEDS_CONF friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
-        [ -e $CONFIG_FILE ] && mv $CONFIG_FILE /friendlywrt-$PLATFORM/friendlywrt/.config
+        [ -e $EXTRA_FEEDS_CONF ] && cat $EXTRA_FEEDS_CONF >> friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
+        [ -e $MY_CONFIG_FILE ] && cp MY_CONFIG_FILE friendlywrt-$PLATFORM/configs/rockchip/
         cp -rf lede/package/lean friendlywrt-$PLATFORM/friendlywrt/package
         cp -rf lede/tools/ucl friendlywrt-$PLATFORM/friendlywrt/tools/
         cp -rf lede/tools/upx friendlywrt-$PLATFORM/friendlywrt/tools/
         chmod +x $PATCH_FILE
-        cd friendlywrt-$PLATFORM/friendlywrt
+        cd friendlywrt-$PLATFORM
         $GITHUB_WORKSPACE/$PATCH_FILE
-
-    - name: Make .config
-      run: |
-        cd friendlywrt-$PLATFORM/friendlywrt
-        cat $GITHUB_WORKSPACE/config/$DEVICE.config.seed > .config
-        make defconfig
 
     - name: Update feeds
       run: cd friendlywrt-$PLATFORM/friendlywrt && ./scripts/feeds update -a
@@ -147,9 +140,3 @@ jobs:
         file_glob: true
         overwrite: true
         release_name: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
-
-    - name: Delete workflow runs
-      uses: GitRML/delete-workflow-runs@main
-      with:
-        retain_days: 1
-        keep_minimum_runs: 3
