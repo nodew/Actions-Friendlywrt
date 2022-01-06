@@ -64,7 +64,7 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo mkdir -p /workdir
         sudo chown $USER:$GROUPS /workdir
-
+        echo "strDate=$(TZ=UTC-8 date +%Y-%m-%d)" >> $GITHUB_ENV
     - name: Install dependencies
       run: |
         sudo apt-get update
@@ -87,7 +87,7 @@ jobs:
         ln -sf /workdir/friendlywrt-$PLATFORM $GITHUB_WORKSPACE/friendlywrt-$PLATFORM
         cd friendlywrt-$PLATFORM
         repo init -u https://github.com/friendlyarm/friendlywrt_manifests -b $BRANCH -m $PLATFORM.xml --repo-url=https://github.com/friendlyarm/repo --no-clone-bundle
-        repo sync -c  --no-clone-bundle
+        repo sync -c --no-clone-bundle
 
     - name: Load custom config
       run: |
@@ -135,13 +135,14 @@ jobs:
       if: env.UPLOAD_FIRMWARE == 'true' && !cancelled()
       run: |
         cd friendlywrt-$PLATFORM/out
+        ls
         echo "::set-output name=status::success"
 
     - name: Upload release asset
       uses: svenstaro/upload-release-action@v2
       with:
         repo_token: ${{ secrets.GITHUB_TOKEN }}
-        file: friendlywrt-${{env.PLATFORM}}/friendlywrt/out/*
+        file: friendlywrt-${{env.PLATFORM}}/out/*
         tag: ${{env.DEVICE}}-${{env.BRANCH}}-${{env.strDate}}
         file_glob: true
         overwrite: true
