@@ -24,7 +24,7 @@ on:
         required: false
       branch:
         description: 'seleclt friendlywrt branch'
-        default: 'master-21.02'
+        default: 'master-v21.02'
         required: false
 
 env:
