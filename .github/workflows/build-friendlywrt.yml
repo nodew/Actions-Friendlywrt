@@ -92,7 +92,8 @@ jobs:
     - name: Load custom config
       run: |
         df -hT $PWD
-        cat lede/feeds.conf.default >> friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
+        sed -i "2,$d" friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
+        cat lede/feeds.conf.default | sed "1d" >> friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
         [ -e $EXTRA_FEEDS_CONF ] && cat $EXTRA_FEEDS_CONF >> friendlywrt-$PLATFORM/friendlywrt/feeds.conf.default
         [ -e $MY_CONFIG_FILE ] && cp $MY_CONFIG_FILE friendlywrt-$PLATFORM/configs/rockchip/
         cp -rf lede/package/lean friendlywrt-$PLATFORM/friendlywrt/package/
